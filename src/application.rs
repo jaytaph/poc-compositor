@@ -1,5 +1,4 @@
 use std::f32::consts::PI;
-use std::num::NonZeroUsize;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use vello::{wgpu, AaConfig, RenderParams, Renderer, RendererOptions, Scene};
@@ -113,13 +112,22 @@ impl ApplicationHandler for App<'_> {
         let surface = pollster::block_on(surface_future).unwrap();
 
         let dev_handle = &self.render_ctx.devices[surface.dev_id];
+        let info = self.render_ctx.instance
+            .request_adapter(&wgpu::RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::HighPerformance,
+                compatible_surface: None,
+                force_fallback_adapter: true, // Force software rendering
+            });
+        let info = pollster::block_on(info).unwrap();
+        dbg!(&info.get_info());
+
         let renderer = Renderer::new(
             &dev_handle.device,
             RendererOptions {
                 surface_format: Some(surface.format),
                 use_cpu: false,
                 antialiasing_support: AA_CONFIGS.iter().copied().collect(),
-                num_init_threads: NonZeroUsize::new(0),
+                num_init_threads: None,
             },
         );
 

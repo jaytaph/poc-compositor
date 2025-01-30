@@ -6,6 +6,7 @@ use winit::event_loop::ControlFlow;
 use winit::event_loop::EventLoop;
 use crate::application::App;
 
+
 fn main() {
     // Initialize the event loop and window
     let event_loop = EventLoop::new().unwrap();
