@@ -13,6 +13,8 @@ use crate::compositor::compositor::Compositor;
 use crate::compositor::layer::Layer;
 use crate::utils::load_image;
 
+const DT_FPS_60_NANO: u128 = 1_000_000_000 / 60;
+
 const AA_CONFIGS: [AaConfig; 3] = [AaConfig::Area, AaConfig::Msaa8, AaConfig::Msaa16];
 
 pub struct App<'s> {
@@ -23,6 +25,7 @@ pub struct App<'s> {
     surface: Option<RenderSurface<'s>>,
     frame_count: u64,
     next_redraw_time: Instant,
+    last_redraw: Instant,
 }
 
 impl<'s> App<'s> {
@@ -35,6 +38,7 @@ impl<'s> App<'s> {
             surface: None,
             frame_count: 0,
             next_redraw_time: Instant::now(),
+            last_redraw: Instant::now(),
         }
     }
 
@@ -116,7 +120,7 @@ impl ApplicationHandler for App<'_> {
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::HighPerformance,
                 compatible_surface: None,
-                force_fallback_adapter: true, // Force software rendering
+                force_fallback_adapter: false,
             });
         let info = pollster::block_on(info).unwrap();
         dbg!(&info.get_info());
@@ -138,7 +142,7 @@ impl ApplicationHandler for App<'_> {
         self.generate_scenes();
         
         self.frame_count = 0;
-        self.next_redraw_time = Instant::now() + Duration::from_secs_f64(1.0 / 60.0);
+        // self.next_redraw_time = Instant::now() + Duration::from_secs_f64(1.0 / 60.0);
 
         // Request a redraw right away. This will trigger the first frame
         self.window.as_ref().unwrap().request_redraw();
@@ -209,8 +213,15 @@ impl ApplicationHandler for App<'_> {
                 );
                 surface_texture.present();
 
-                self.next_redraw_time += Duration::from_secs_f64(1.0 / 60.0);
-                event_loop.set_control_flow(ControlFlow::WaitUntil(self.next_redraw_time));
+                // Check if should redraw
+                if self.last_redraw.elapsed().as_nanos() > DT_FPS_60_NANO {
+                    println!("FPS: {:>6.2}", 1000.0 / self.last_redraw.elapsed().as_millis() as f64);
+                    self.last_redraw = Instant::now();
+                }
+
+                self.next_redraw_time += Duration::from_secs_f64(5.0);
+                // event_loop.set_control_flow(ControlFlow::WaitUntil(self.next_redraw_time));
+                event_loop.set_control_flow(ControlFlow::Poll);
                 self.window.as_ref().unwrap().request_redraw();
             }
             _ => (),
